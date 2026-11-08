@@ -1,0 +1,86 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  body {
+    @apply bg-navy-50 text-navy-900 antialiased;
+  }
+
+  .dark body {
+    @apply bg-navy-950 text-navy-50;
+  }
+
+  ::-webkit-scrollbar {
+    width: 0px;
+    height: 0px;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-white/80 backdrop-blur-xl border border-white/60 shadow-card;
+  }
+
+  .dark .glass-card {
+    @apply bg-navy-900/60 border-navy-700/40;
+  }
+
+  .gradient-primary {
+    background: linear-gradient(135deg, #656cf0 0%, #9b73ff 100%);
+  }
+
+  .gradient-accent {
+    background: linear-gradient(135deg, #9b73ff 0%, #d6c7ff 100%);
+  }
+
+  .gradient-splash {
+    background: linear-gradient(160deg, #f0f4ff 0%, #e9e0ff 40%, #d6c7ff 100%);
+  }
+
+  .dark .gradient-splash {
+    background: linear-gradient(160deg, #0f0c29 0%, #1e1b4b 40%, #383086 100%);
+  }
+
+  .gradient-text {
+    background: linear-gradient(135deg, #5046e4 0%, #9b73ff 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .skeleton {
+    @apply bg-gradient-to-r from-navy-100 via-navy-200 to-navy-100 bg-[length:200%_100%] animate-shimmer;
+  }
+
+  .dark .skeleton {
+    @apply from-navy-800 via-navy-700 to-navy-800;
+  }
+}
+
+/* Phone frame */
+.phone-frame {
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto;
+  min-height: 100vh;
+  position: relative;
+}
+
+@media (min-width: 480px) {
+  .phone-frame {
+    min-height: 920px;
+    margin: 24px auto;
+    border-radius: 40px;
+    overflow: hidden;
+    box-shadow: 0 30px 80px -20px rgba(80, 70, 228, 0.25);
+  }
+}

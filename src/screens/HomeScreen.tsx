@@ -190,20 +190,6 @@ export function HomeScreen({ onNavigate, onOpenAssistant }: { onNavigate: (s: Sc
         </div>
       </div>
 
-      {/* Floating voice button */}
-      <button
-        onClick={onOpenAssistant}
-        className="fixed bottom-28 left-1/2 -translate-x-1/2 z-40 group"
-        style={{ position: 'absolute', bottom: '100px' }}
-        aria-label="Open AI Voice Assistant"
-      >
-        <div className="relative">
-          <div className="absolute inset-0 rounded-full gradient-primary blur-xl opacity-60 animate-pulse-slow" />
-          <div className="relative w-16 h-16 rounded-full gradient-primary flex items-center justify-center shadow-float transition-transform duration-300 group-hover:scale-110 group-active:scale-95">
-            <Mic size={24} className="text-white" />
-          </div>
-        </div>
-      </button>
     </div>
   );
 }

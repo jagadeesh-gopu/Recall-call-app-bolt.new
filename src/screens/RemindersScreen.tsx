@@ -23,7 +23,7 @@ export function RemindersScreen() {
       <div className="gradient-splash px-5 pt-14 pb-5 rounded-b-[2rem]">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="font-display text-2xl font-extrabold text-navy-900 dark:text-white">Reminders</h1>
+            <h1 className="font-display text-2xl font-extrabold text-navy-900 dark:text-white pl-14">Reminders</h1>
             <p className="text-xs text-navy-400 dark:text-navy-200 mt-0.5">{today.filter(r => !r.completed).length} today · {upcoming.length} upcoming</p>
           </div>
           <button

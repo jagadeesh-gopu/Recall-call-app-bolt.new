@@ -29,7 +29,7 @@ export function CallsScreen() {
     <div className="min-h-screen bg-navy-50 dark:bg-navy-950 pb-32 animate-fade-in">
       {/* Header */}
       <div className="gradient-splash px-5 pt-14 pb-5 rounded-b-[2rem]">
-        <h1 className="font-display text-2xl font-extrabold text-navy-900 dark:text-white mb-1">Call History</h1>
+        <h1 className="font-display text-2xl font-extrabold text-navy-900 dark:text-white mb-1 pl-14">Call History</h1>
         <p className="text-xs text-navy-400 dark:text-navy-200 mb-4">Search your calls with natural language</p>
 
         {/* AI search bar */}

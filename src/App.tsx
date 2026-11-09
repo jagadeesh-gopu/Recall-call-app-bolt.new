@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { Screen, Theme, Contact, Note } from './types';
 import { SplashScreen } from './screens/SplashScreen';
 import { OnboardingScreen } from './screens/OnboardingScreen';
@@ -11,7 +11,7 @@ import { CallsScreen } from './screens/CallsScreen';
 import { RemindersScreen } from './screens/RemindersScreen';
 import { SearchScreen } from './screens/SearchScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
-import { BottomNav, FloatingVoiceButton } from './components/Navigation';
+import { BottomNav, FloatingVoiceButton, BackButton } from './components/Navigation';
 
 const mainScreens: Screen[] = ['home', 'search', 'notes', 'contacts', 'profile'];
 
@@ -22,6 +22,7 @@ export default function App() {
   const [editingNote, setEditingNote] = useState<Note | undefined>(undefined);
   const [noteEditorOpen, setNoteEditorOpen] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [navHistory, setNavHistory] = useState<Screen[]>([]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -32,6 +33,26 @@ export default function App() {
   const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');
 
   const isMainScreen = mainScreens.includes(screen);
+
+  const navigateTo = useCallback((s: Screen) => {
+    setScreen((prev) => {
+      setNavHistory((h) => [...h, prev]);
+      return s;
+    });
+  }, []);
+
+  const goBack = useCallback(() => {
+    setNavHistory((h) => {
+      if (h.length === 0) {
+        setScreen('home');
+        return h;
+      }
+      const newHistory = [...h];
+      const prev = newHistory.pop()!;
+      setScreen(prev);
+      return newHistory;
+    });
+  }, []);
 
   const openAssistant = () => setAssistantOpen(true);
   const closeAssistant = () => setAssistantOpen(false);
@@ -48,6 +69,8 @@ export default function App() {
   const openContact = (c: Contact) => setSelectedContact(c);
   const closeContact = () => setSelectedContact(null);
 
+  const showBackButton = isMainScreen && screen !== 'home';
+
   const renderScreen = () => {
     switch (screen) {
       case 'splash':
@@ -55,9 +78,9 @@ export default function App() {
       case 'onboarding':
         return <OnboardingScreen onDone={() => setScreen('auth')} />;
       case 'auth':
-        return <AuthScreen onDone={() => setScreen('home')} />;
+        return <AuthScreen />;
       case 'home':
-        return <HomeScreen onNavigate={setScreen} onOpenAssistant={openAssistant} />;
+        return <HomeScreen onNavigate={navigateTo} onOpenAssistant={openAssistant} />;
       case 'calls':
         return <CallsScreen />;
       case 'notes':
@@ -71,7 +94,7 @@ export default function App() {
       case 'profile':
         return <ProfileScreen theme={theme} onToggleTheme={toggleTheme} />;
       default:
-        return <HomeScreen onNavigate={setScreen} onOpenAssistant={openAssistant} />;
+        return <HomeScreen onNavigate={navigateTo} onOpenAssistant={openAssistant} />;
     }
   };
 
@@ -85,18 +108,20 @@ export default function App() {
       {/* Main app screens with bottom nav */}
       {isMainScreen && (
         <>
+          {showBackButton && <BackButton onBack={goBack} />}
           <div className="min-h-screen pb-2">{renderScreen()}</div>
           <FloatingVoiceButton onClick={openAssistant} />
-          <BottomNav current={screen} onNavigate={setScreen} />
+          <BottomNav current={screen} onNavigate={navigateTo} onBack={goBack} />
         </>
       )}
 
       {/* Secondary screens (calls, reminders) with back nav to home */}
       {(screen === 'calls' || screen === 'reminders') && (
         <>
+          <BackButton onBack={goBack} />
           <div className="min-h-screen pb-2">{renderScreen()}</div>
           <FloatingVoiceButton onClick={openAssistant} />
-          <BottomNav current={screen === 'calls' ? 'home' : 'home'} onNavigate={setScreen} />
+          <BottomNav current={'home'} onNavigate={navigateTo} onBack={goBack} />
         </>
       )}
 

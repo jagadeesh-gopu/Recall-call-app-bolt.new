@@ -63,7 +63,7 @@ export function ProfileScreen({ theme, onToggleTheme }: { theme: 'light' | 'dark
       {/* Header */}
       <div className="gradient-splash px-5 pt-14 pb-6 rounded-b-[2rem] relative overflow-hidden">
         <div className="absolute top-5 right-5 w-32 h-32 rounded-full bg-lavender-300/20 blur-2xl" />
-        <h1 className="font-display text-2xl font-extrabold text-navy-900 dark:text-white mb-5">Profile & Settings</h1>
+        <h1 className="font-display text-2xl font-extrabold text-navy-900 dark:text-white mb-5 pl-14">Profile & Settings</h1>
 
         {/* Profile card */}
         <div className="glass-card rounded-2xl p-4 flex items-center gap-4">

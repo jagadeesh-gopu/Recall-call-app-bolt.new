@@ -28,7 +28,7 @@ export function NotesScreen({ onOpenEditor }: { onOpenEditor: (note?: Note) => v
       <div className="gradient-splash px-5 pt-14 pb-5 rounded-b-[2rem]">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="font-display text-2xl font-extrabold text-navy-900 dark:text-white">Smart Notes</h1>
+            <h1 className="font-display text-2xl font-extrabold text-navy-900 dark:text-white pl-14">Smart Notes</h1>
             <p className="text-xs text-navy-400 dark:text-navy-200 mt-0.5">
               {loading ? 'Loading notes...' : `${notes.length} notes · ${pinned.length} pinned`}
             </p>

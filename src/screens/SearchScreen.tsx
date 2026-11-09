@@ -26,7 +26,7 @@ export function SearchScreen() {
     <div className="min-h-screen bg-navy-50 dark:bg-navy-950 pb-32 animate-fade-in">
       {/* Header */}
       <div className="gradient-splash px-5 pt-14 pb-5 rounded-b-[2rem]">
-        <h1 className="font-display text-2xl font-extrabold text-navy-900 dark:text-white mb-1">Universal Search</h1>
+        <h1 className="font-display text-2xl font-extrabold text-navy-900 dark:text-white mb-1 pl-14">Universal Search</h1>
         <p className="text-xs text-navy-400 dark:text-navy-200 mb-4">Search across everything in your memory</p>
 
         <div className="glass-card rounded-2xl p-1.5 flex items-center gap-2">

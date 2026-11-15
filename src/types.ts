@@ -26,6 +26,8 @@ export interface CallRecord {
   time: string;
   duration: string;
   avatarColor: string;
+  notes?: string;
+  contactId?: string;
 }
 
 export interface Note {
@@ -37,6 +39,7 @@ export interface Note {
   date: string;
   pinned: boolean;
   color: string;
+  contactId?: string;
 }
 
 export type NoteCategory = 'Personal' | 'College' | 'Work' | 'Contacts' | 'Important' | 'Reminders';
@@ -70,6 +73,9 @@ export interface ChatMessage {
   role: 'user' | 'assistant';
   text: string;
   results?: CallRecord[];
+  notes?: Note[];
+  reminders?: Reminder[];
+  contacts?: Contact[];
   timestamp: string;
 }
 

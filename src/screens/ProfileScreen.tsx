@@ -3,6 +3,10 @@ import {
   Bell, Volume2, Sparkles, Shield, Database, Download, Trash2, Globe,
   Moon, Sun, ChevronRight, LogOut, Brain, Mic, Lock, HelpCircle, Star,
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { notes, contacts } from '../data';
+import { loadAISettings, saveAISettings, type AISettings } from '../services/ai';
+import { AISettingsModal } from '../components/AISettingsModal';
 
 interface SettingsItem {
   icon: typeof Bell;
@@ -19,16 +23,51 @@ interface SettingsGroup {
 }
 
 export function ProfileScreen({ theme, onToggleTheme }: { theme: 'light' | 'dark'; onToggleTheme: () => void }) {
+  const { signOut, profile, user } = useAuth();
   const [notifications, setNotifications] = useState(true);
   const [voice, setVoice] = useState(true);
+  const [aiSettings, setAiSettings] = useState<AISettings>(loadAISettings);
+  const [showAiModal, setShowAiModal] = useState(false);
+
+  const displayName = profile?.display_name ?? user?.phone ?? 'User';
+  const displayInitials = displayName.slice(0, 2).toUpperCase();
+
+  const handleUpdateAISettings = (updated: Partial<AISettings>) => {
+    setAiSettings((prev) => {
+      const next = { ...prev, ...updated };
+      saveAISettings(next);
+      return next;
+    });
+  };
+
+  const aiProviderLabel =
+    aiSettings.provider === 'local-builtin'
+      ? 'Built-in Local AI'
+      : aiSettings.provider === 'gemini'
+      ? `Google Gemini (${aiSettings.model})`
+      : aiSettings.provider === 'ollama'
+      ? `Ollama (${aiSettings.model})`
+      : 'Custom Local LLM';
 
   const settingsGroups: SettingsGroup[] = [
     {
       title: 'AI & Voice',
       items: [
-        { icon: Brain, label: 'AI Provider', value: 'OpenAI GPT-4', toggle: false },
+        {
+          icon: Brain,
+          label: 'AI Provider',
+          value: aiProviderLabel,
+          toggle: false,
+          onChange: () => setShowAiModal(true),
+        },
         { icon: Mic, label: 'Voice Commands', toggle: true, state: voice, onChange: () => setVoice(!voice) },
-        { icon: Volume2, label: 'Voice Output', value: 'Female · Natural', toggle: false },
+        {
+          icon: Volume2,
+          label: 'Voice Output',
+          value: aiSettings.voiceOutput ? 'Enabled (Browser TTS)' : 'Muted',
+          toggle: false,
+          onChange: () => setShowAiModal(true),
+        },
         { icon: Sparkles, label: 'AI Suggestions', toggle: true, state: true, onChange: () => {} },
       ],
     },
@@ -68,16 +107,16 @@ export function ProfileScreen({ theme, onToggleTheme }: { theme: 'light' | 'dark
         {/* Profile card */}
         <div className="glass-card rounded-2xl p-4 flex items-center gap-4">
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-navy-400 to-violet-400 flex items-center justify-center text-white text-xl font-bold shadow-float">
-            JD
+            {displayInitials}
           </div>
           <div className="flex-1">
-            <h2 className="font-display font-bold text-navy-900 dark:text-white text-lg">John Doe</h2>
-            <p className="text-xs text-navy-400 dark:text-navy-300">john.doe@example.com</p>
+            <h2 className="font-display font-bold text-navy-900 dark:text-white text-lg">{displayName}</h2>
+            <p className="text-xs text-navy-400 dark:text-navy-300">{user?.phone ?? 'Phone user'}</p>
             <div className="flex items-center gap-3 mt-1.5">
               <span className="text-[10px] font-medium text-lavender-600 dark:text-lavender-400 flex items-center gap-1">
                 <Sparkles size={10} /> Pro Member
               </span>
-              <span className="text-[10px] text-navy-400">{notes_count()} notes · {contacts_count()} contacts</span>
+              <span className="text-[10px] text-navy-400">{notes.length} notes · {contacts.length} contacts</span>
             </div>
           </div>
         </div>
@@ -135,7 +174,7 @@ export function ProfileScreen({ theme, onToggleTheme }: { theme: 'light' | 'dark
             <span className="flex-1 text-sm font-medium text-rose-600 dark:text-rose-400 text-left">Delete Account</span>
             <ChevronRight size={16} className="text-navy-300 dark:text-navy-500" />
           </button>
-          <button className="w-full flex items-center gap-3 p-3.5 hover:bg-navy-50/50 dark:hover:bg-navy-800/30 transition-colors">
+          <button className="w-full flex items-center gap-3 p-3.5 hover:bg-navy-50/50 dark:hover:bg-navy-800/30 transition-colors" onClick={() => signOut()}>
             <div className="w-9 h-9 rounded-xl bg-navy-100 dark:bg-navy-800 flex items-center justify-center">
               <LogOut size={17} className="text-navy-600 dark:text-navy-200" />
             </div>
@@ -148,9 +187,14 @@ export function ProfileScreen({ theme, onToggleTheme }: { theme: 'light' | 'dark
           RecallCall v1.0.0 · Your memory, always within reach.
         </p>
       </div>
+
+      {showAiModal && (
+        <AISettingsModal
+          settings={aiSettings}
+          onUpdate={handleUpdateAISettings}
+          onClose={() => setShowAiModal(false)}
+        />
+      )}
     </div>
   );
 }
-
-function notes_count() { return 8; }
-function contacts_count() { return 6; }

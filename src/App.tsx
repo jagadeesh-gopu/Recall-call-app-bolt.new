@@ -12,10 +12,12 @@ import { RemindersScreen } from './screens/RemindersScreen';
 import { SearchScreen } from './screens/SearchScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
 import { BottomNav, FloatingVoiceButton, BackButton } from './components/Navigation';
+import { useAuth } from './context/AuthContext';
 
 const mainScreens: Screen[] = ['home', 'search', 'notes', 'contacts', 'profile'];
 
 export default function App() {
+  const { session, loading: authLoading } = useAuth();
   const [screen, setScreen] = useState<Screen>('splash');
   const [theme, setTheme] = useState<Theme>('light');
   const [assistantOpen, setAssistantOpen] = useState(false);
@@ -29,6 +31,20 @@ export default function App() {
     if (theme === 'dark') root.classList.add('dark');
     else root.classList.remove('dark');
   }, [theme]);
+
+  // When auth state resolves, redirect appropriately
+  useEffect(() => {
+    if (authLoading) return;
+    if (session) {
+      // Already authenticated — skip splash/onboarding/auth and go to home
+      setScreen((prev) => {
+        if (prev === 'splash' || prev === 'onboarding' || prev === 'auth') {
+          return 'home';
+        }
+        return prev;
+      });
+    }
+  }, [session, authLoading]);
 
   const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');
 
@@ -78,7 +94,7 @@ export default function App() {
       case 'onboarding':
         return <OnboardingScreen onDone={() => setScreen('auth')} />;
       case 'auth':
-        return <AuthScreen />;
+        return <AuthScreen onSuccess={() => setScreen('home')} />;
       case 'home':
         return <HomeScreen onNavigate={navigateTo} onOpenAssistant={openAssistant} />;
       case 'calls':
@@ -90,7 +106,13 @@ export default function App() {
       case 'reminders':
         return <RemindersScreen />;
       case 'search':
-        return <SearchScreen />;
+        return (
+          <SearchScreen
+            onNavigate={navigateTo}
+            onOpenContact={openContact}
+            onOpenNote={openNoteEditor}
+          />
+        );
       case 'profile':
         return <ProfileScreen theme={theme} onToggleTheme={toggleTheme} />;
       default:
@@ -128,7 +150,25 @@ export default function App() {
       {/* Overlays */}
       {assistantOpen && <AssistantScreen onClose={closeAssistant} />}
       {noteEditorOpen && <NoteEditorScreen note={editingNote} onClose={closeNoteEditor} />}
-      {selectedContact && <ContactDetailScreen contact={selectedContact} onBack={closeContact} />}
+      {selectedContact && (
+        <ContactDetailScreen
+          contact={selectedContact}
+          onBack={closeContact}
+          onOpenNoteEditor={(contactName) => {
+            closeContact();
+            openNoteEditor({
+              id: '',
+              title: `Note: ${contactName}`,
+              content: `Key discussion with ${contactName}:\n• \nAction Items:\n- [ ] `,
+              category: 'Personal',
+              tags: [contactName.toLowerCase()],
+              date: 'Today',
+              pinned: false,
+              color: 'from-indigo-400 to-violet-400',
+            });
+          }}
+        />
+      )}
     </div>
   );
 }

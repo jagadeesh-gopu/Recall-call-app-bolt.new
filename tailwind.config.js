@@ -42,6 +42,9 @@ export default {
         glow: '0 0 40px rgba(155, 115, 255, 0.4)',
         'glow-lg': '0 0 80px rgba(155, 115, 255, 0.5)',
       },
+      spacing: {
+        '13': '3.25rem',
+      },
       animation: {
         'fade-in': 'fadeIn 0.5s ease-out',
         'slide-up': 'slideUp 0.4s ease-out',

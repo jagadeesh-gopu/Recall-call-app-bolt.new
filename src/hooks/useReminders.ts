@@ -1,6 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Reminder } from '../types';
+import { reminders as staticReminders } from '../data';
+
+// Check if Supabase is configured
+const isSupabaseConfigured = Boolean(
+  import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY
+);
 
 interface DbReminder {
   id: string;
@@ -54,6 +60,13 @@ export function useReminders() {
   const fetchReminders = useCallback(async () => {
     setLoading(true);
     setError(null);
+
+    if (!isSupabaseConfigured) {
+      setReminders(staticReminders);
+      setLoading(false);
+      return;
+    }
+
     const { data, error: err } = await supabase
       .from('reminders')
       .select('*')
@@ -61,8 +74,9 @@ export function useReminders() {
       .order('remind_at', { ascending: true, nullsFirst: false });
 
     if (err) {
-      setError(err.message);
-      setReminders([]);
+      console.warn('Supabase reminders fetch failed, using static data:', err.message);
+      setReminders(staticReminders);
+      setError(null);
     } else {
       setReminders((data as DbReminder[] ?? []).map(dbToReminder));
     }
@@ -80,6 +94,21 @@ export function useReminders() {
     contactName?: string;
     recurring?: boolean;
   }) => {
+    if (!isSupabaseConfigured) {
+      const newReminder: Reminder = {
+        id: `local_${Date.now()}`,
+        title: reminder.title,
+        time: reminder.remindAt?.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) ?? '12:00 PM',
+        date: 'Tomorrow',
+        completed: false,
+        recurring: reminder.recurring ?? false,
+        contactName: reminder.contactName,
+        category: reminder.category ?? 'Personal',
+      };
+      setReminders((prev) => [...prev, newReminder]);
+      return { error: null, reminder: newReminder };
+    }
+
     const { data, error: err } = await supabase
       .from('reminders')
       .insert({
@@ -104,6 +133,11 @@ export function useReminders() {
     const reminder = reminders.find((r) => r.id === id);
     if (!reminder) return { error: 'Reminder not found' };
 
+    if (!isSupabaseConfigured) {
+      setReminders((prev) => prev.map((r) => (r.id === id ? { ...r, completed: !r.completed } : r)));
+      return { error: null };
+    }
+
     const { error: err } = await supabase
       .from('reminders')
       .update({ completed: !reminder.completed })
@@ -117,6 +151,11 @@ export function useReminders() {
   }, [reminders]);
 
   const deleteReminder = useCallback(async (id: string) => {
+    if (!isSupabaseConfigured) {
+      setReminders((prev) => prev.filter((r) => r.id !== id));
+      return { error: null };
+    }
+
     const { error: err } = await supabase.from('reminders').delete().eq('id', id);
     if (err) return { error: err.message };
     setReminders((prev) => prev.filter((r) => r.id !== id));

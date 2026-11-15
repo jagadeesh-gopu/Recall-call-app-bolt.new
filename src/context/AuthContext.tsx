@@ -2,6 +2,11 @@ import { createContext, useContext, useEffect, useState, useCallback, type React
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 
+// Check if Supabase is configured
+const isSupabaseConfigured = Boolean(
+  import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY
+);
+
 interface Profile {
   id: string;
   display_name: string;
@@ -46,6 +51,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
+    // Skip Supabase calls when not configured — stay as unauthenticated
+    if (!isSupabaseConfigured) {
+      setLoading(false);
+      return;
+    }
+
     supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return;
       setSession(data.session);
@@ -78,6 +89,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [fetchProfile]);
 
   const sendOtp = useCallback(async (phone: string) => {
+    if (!isSupabaseConfigured) {
+      return { error: 'Supabase is not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables.' };
+    }
     const { error } = await supabase.auth.signInWithOtp({
       phone,
       options: { channel: 'sms' },

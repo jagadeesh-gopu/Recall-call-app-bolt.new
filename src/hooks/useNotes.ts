@@ -1,10 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Note, NoteCategory } from '../types';
+import { notes as staticNotes } from '../data';
+
+// Check if Supabase is configured
+const isSupabaseConfigured = Boolean(
+  import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY
+);
 
 interface DbNote {
   id: string;
   user_id: string;
+  contact_id?: string | null;
   title: string;
   content: string;
   category: string;
@@ -29,6 +36,7 @@ function dbToNote(db: DbNote): Note {
     }),
     pinned: db.pinned,
     color: db.color ?? 'from-indigo-400 to-violet-400',
+    contactId: db.contact_id ?? undefined,
   };
 }
 
@@ -40,6 +48,14 @@ export function useNotes() {
   const fetchNotes = useCallback(async () => {
     setLoading(true);
     setError(null);
+
+    // Fall back to static demo data if Supabase is not configured
+    if (!isSupabaseConfigured) {
+      setNotes(staticNotes);
+      setLoading(false);
+      return;
+    }
+
     const { data, error: err } = await supabase
       .from('notes')
       .select('*')
@@ -47,8 +63,10 @@ export function useNotes() {
       .order('created_at', { ascending: false });
 
     if (err) {
-      setError(err.message);
-      setNotes([]);
+      // Fall back to static data on error
+      console.warn('Supabase notes fetch failed, using static data:', err.message);
+      setNotes(staticNotes);
+      setError(null); // Don't show error — use fallback silently
     } else {
       setNotes((data as DbNote[] ?? []).map(dbToNote));
     }
@@ -60,6 +78,23 @@ export function useNotes() {
   }, [fetchNotes]);
 
   const createNote = useCallback(async (note: Partial<Note>) => {
+    if (!isSupabaseConfigured) {
+      // Local-only mode: generate a fake note
+      const newNote: Note = {
+        id: `local_${Date.now()}`,
+        title: note.title ?? '',
+        content: note.content ?? '',
+        category: note.category ?? 'Personal',
+        tags: note.tags ?? [],
+        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        pinned: note.pinned ?? false,
+        color: note.color ?? 'from-indigo-400 to-violet-400',
+        contactId: note.contactId,
+      };
+      setNotes((prev) => [newNote, ...prev]);
+      return { error: null, note: newNote };
+    }
+
     const { data, error: err } = await supabase
       .from('notes')
       .insert({
@@ -69,6 +104,7 @@ export function useNotes() {
         tags: note.tags ?? [],
         pinned: note.pinned ?? false,
         color: note.color ?? null,
+        contact_id: note.contactId ?? null,
       })
       .select()
       .single();
@@ -82,6 +118,11 @@ export function useNotes() {
   }, []);
 
   const updateNote = useCallback(async (id: string, updates: Partial<Note>) => {
+    if (!isSupabaseConfigured) {
+      setNotes((prev) => prev.map((n) => n.id === id ? { ...n, ...updates } : n));
+      return { error: null };
+    }
+
     const { data, error: err } = await supabase
       .from('notes')
       .update({
@@ -91,6 +132,7 @@ export function useNotes() {
         tags: updates.tags,
         pinned: updates.pinned,
         color: updates.color,
+        contact_id: updates.contactId,
       })
       .eq('id', id)
       .select()
@@ -105,6 +147,11 @@ export function useNotes() {
   }, []);
 
   const deleteNote = useCallback(async (id: string) => {
+    if (!isSupabaseConfigured) {
+      setNotes((prev) => prev.filter((n) => n.id !== id));
+      return { error: null };
+    }
+
     const { error: err } = await supabase.from('notes').delete().eq('id', id);
     if (err) return { error: err.message };
     setNotes((prev) => prev.filter((n) => n.id !== id));

@@ -3,7 +3,7 @@ import { Phone, ArrowRight, Shield, Sparkles, AlertCircle, Loader2, KeyRound, Ch
 import { LogoMark } from '../components/Logo';
 import { useAuth } from '../context/AuthContext';
 
-export function AuthScreen() {
+export function AuthScreen({ onSuccess }: { onSuccess?: () => void }) {
   const { sendOtp, verifyOtp } = useAuth();
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
   const [phone, setPhone] = useState('');
@@ -21,24 +21,30 @@ export function AuthScreen() {
   }, [resendTimer]);
 
   const formatPhone = (raw: string) => {
+    // Strip all non‑digit characters
     const digits = raw.replace(/\D/g, '');
     if (!digits) return '';
-    if (digits.startsWith('91') && digits.length > 10) {
-      return '+' + digits.slice(0, 12);
-    }
+    // Ensure the number is in E.164 format (+<countrycode><number>)
+    // Limit length to 15 digits as per E.164 spec
     return '+' + digits.slice(0, 15);
+  };
+
+  // Validate that a phone string is a proper E.164 number
+  const isValidPhone = (phoneStr: string) => {
+    const e164 = /^\+\d{10,15}$/;
+    return e164.test(phoneStr);
   };
 
   const handleSendOtp = async () => {
     setError(null);
     setInfo(null);
-    const digits = phone.replace(/\D/g, '');
-    if (digits.length < 10) {
-      setError('Please enter a valid phone number with country code (e.g. +91 98765 43210).');
+    if (!isValidPhone(phone)) {
+      setError('Please enter a valid phone number in international format, e.g., +91 98765 43210.');
       return;
     }
+    console.log('Sending OTP to', phone);
     setLoading(true);
-    const { error: err } = await sendOtp('+' + digits);
+    const { error: err } = await sendOtp(phone);
     setLoading(false);
     if (err) {
       setError(err);
@@ -58,24 +64,30 @@ export function AuthScreen() {
       setError('Please enter all 6 digits of the OTP.');
       return;
     }
-    const digits = phone.replace(/\D/g, '');
+    const formattedPhone = phone.startsWith('+') ? phone : '+' + phone.replace(/\D/g, '');
     setLoading(true);
-    const { error: err } = await verifyOtp('+' + digits, code);
+    const { error: err } = await verifyOtp(formattedPhone, code);
     setLoading(false);
     if (err) {
       setError(err);
       return;
     }
     setInfo('Verified! Welcome to RecallCall.');
+    // Navigate to home after a brief success message
+    setTimeout(() => onSuccess?.(), 800);
   };
 
   const handleResendOtp = async () => {
     if (resendTimer > 0) return;
     setError(null);
     setInfo(null);
-    const digits = phone.replace(/\D/g, '');
+    const formattedPhone = phone.startsWith('+') ? phone : '+' + phone.replace(/\D/g, '');
+    if (!isValidPhone(formattedPhone)) {
+      setError('Invalid phone number.');
+      return;
+    }
     setLoading(true);
-    const { error: err } = await sendOtp('+' + digits);
+    const { error: err } = await sendOtp(formattedPhone);
     setLoading(false);
     if (err) {
       setError(err);
@@ -194,6 +206,19 @@ export function AuthScreen() {
                       <ArrowRight size={18} />
                     </>
                   )}
+                </button>
+
+                <div className="relative flex items-center justify-center my-3">
+                  <div className="border-t border-navy-100 dark:border-navy-700 w-full" />
+                  <span className="bg-white dark:bg-navy-900 px-2 text-[10px] text-navy-400 uppercase tracking-wider absolute">or</span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => onSuccess?.()}
+                  className="w-full h-11 rounded-2xl bg-navy-50 dark:bg-navy-800 text-navy-600 dark:text-navy-200 font-semibold text-xs transition-all hover:bg-navy-100 dark:hover:bg-navy-700"
+                >
+                  Continue in Demo Mode (Skip Auth)
                 </button>
               </div>
             </>

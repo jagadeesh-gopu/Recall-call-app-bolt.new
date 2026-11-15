@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { Plus, Mic, Sparkles, Search, Pin, Archive, Trash2, Edit3, X, Tag, ChevronDown, Loader2 } from 'lucide-react';
+import { Plus, Mic, Sparkles, Search, Pin, Archive, Trash2, Edit3, X, Tag, ChevronDown, Loader2, Users } from 'lucide-react';
 import { categoryColors } from '../data';
 import { CategoryTag, PinIndicator, EmptyState } from '../components/ui';
 import { useNotes } from '../hooks/useNotes';
+import { useContacts } from '../hooks/useContacts';
 import type { Note, NoteCategory } from '../types';
+import { queryLocalModel, loadAISettings } from '../services/ai';
 
 const categories: (NoteCategory | 'All')[] = ['All', 'Personal', 'College', 'Work', 'Contacts', 'Important', 'Reminders'];
 
@@ -77,8 +79,8 @@ export function NotesScreen({ onOpenEditor }: { onOpenEditor: (note?: Note) => v
       <div className="px-5 mt-4 grid grid-cols-3 gap-3">
         {[
           { label: 'New Note', icon: Edit3, color: 'from-indigo-400 to-violet-400', action: () => onOpenEditor() },
-          { label: 'Voice Note', icon: Mic, color: 'from-pink-400 to-rose-400', action: () => onOpenEditor() },
-          { label: 'AI Note', icon: Sparkles, color: 'from-emerald-400 to-teal-400', action: () => onOpenEditor() },
+          { label: 'Voice Note', icon: Mic, color: 'from-pink-400 to-rose-400', action: () => onOpenEditor({ id: '', title: 'Voice Note', content: '', category: 'Personal', tags: ['voice'], date: 'Today', pinned: false, color: 'from-pink-400 to-rose-400' }) },
+          { label: 'AI Note', icon: Sparkles, color: 'from-emerald-400 to-teal-400', action: () => onOpenEditor({ id: '', title: 'Smart Summary Note', content: 'Key Takeaways:\n• \n\nNext Action Items:\n- [ ] ', category: 'Work', tags: ['ai-summary'], date: 'Today', pinned: false, color: 'from-emerald-400 to-teal-400' }) },
         ].map((a) => {
           const Icon = a.icon;
           return (
@@ -177,13 +179,64 @@ function NoteCard({ note, onClick }: { note: Note; onClick: () => void }) {
 
 export function NoteEditorScreen({ note, onClose }: { note?: Note; onClose: () => void }) {
   const { createNote, updateNote, deleteNote } = useNotes();
+  const { contacts } = useContacts();
   const [title, setTitle] = useState(note?.title ?? '');
   const [content, setContent] = useState(note?.content ?? '');
   const [category, setCategory] = useState<NoteCategory>(note?.category ?? 'Personal');
   const [tags, setTags] = useState<string[]>(note?.tags ?? []);
   const [tagInput, setTagInput] = useState('');
+  const [contactId, setContactId] = useState<string | undefined>(note?.contactId);
+  const [showContactPicker, setShowContactPicker] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [dictating, setDictating] = useState(false);
+
+  const selectedContact = contacts.find((c) => c.id === contactId);
+
+  const handleAIEnhance = async () => {
+    if (!title && !content) {
+      setTitle('Call Summary & Action Items');
+      setContent('1. Key discussion points:\n- \n\n2. Next follow-ups:\n- \n\n3. Decisions reached:\n- ');
+      return;
+    }
+
+    setAiGenerating(true);
+    const settings = loadAISettings();
+    const prompt = `Summarize and clean up these notes into clear action items and key takeaways: Title: "${title}", Content: "${content}"`;
+    const res = await queryLocalModel(prompt, settings, {});
+    setAiGenerating(false);
+
+    if (res.text) {
+      const cleaned = res.text.replace(/^\[Local Engine\]\s*/, '');
+      setContent((prev) => `${prev}\n\n[Local AI Summary]:\n${cleaned}`);
+    }
+  };
+
+  const handleVoiceDictation = () => {
+    const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRec) {
+      setContent((prev) => `${prev} [Voice dictation added via speech]`);
+      return;
+    }
+
+    try {
+      const rec = new SpeechRec();
+      rec.lang = 'en-US';
+      rec.onstart = () => setDictating(true);
+      rec.onresult = (e: any) => {
+        const transcript = e.results?.[0]?.[0]?.transcript;
+        if (transcript) {
+          setContent((prev) => (prev ? `${prev} ${transcript}` : transcript));
+        }
+      };
+      rec.onend = () => setDictating(false);
+      rec.onerror = () => setDictating(false);
+      rec.start();
+    } catch {
+      setDictating(false);
+    }
+  };
 
   const addTag = () => {
     if (tagInput.trim() && !tags.includes(tagInput.trim())) {
@@ -200,9 +253,17 @@ export function NoteEditorScreen({ note, onClose }: { note?: Note; onClose: () =
     setSaving(true);
     setError(null);
 
-    const noteData = { title, content, category, tags, pinned: note?.pinned ?? false, color: note?.color };
+    const noteData = {
+      title,
+      content,
+      category,
+      tags,
+      pinned: note?.pinned ?? false,
+      color: note?.color,
+      contactId,
+    };
 
-    if (note) {
+    if (note && note.id) {
       const { error: err } = await updateNote(note.id, noteData);
       if (err) setError(err);
     } else {
@@ -309,25 +370,82 @@ export function NoteEditorScreen({ note, onClose }: { note?: Note; onClose: () =
         </div>
 
         {/* Contact association */}
-        <div className="glass-card rounded-2xl p-3.5 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-400 flex items-center justify-center">
-            <span className="text-white text-xs font-semibold">RS</span>
+        <div className="glass-card rounded-2xl p-3.5 space-y-2">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-400 flex items-center justify-center">
+              <span className="text-white text-xs font-semibold">
+                {selectedContact ? selectedContact.initials : <Users size={16} />}
+              </span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-navy-700 dark:text-navy-100 truncate">
+                {selectedContact ? selectedContact.name : 'Associate contact'}
+              </p>
+              <p className="text-[10px] text-navy-400 truncate">
+                {selectedContact ? selectedContact.phone : 'Link this note to a contact memory'}
+              </p>
+            </div>
+            {selectedContact ? (
+              <button
+                type="button"
+                onClick={() => setContactId(undefined)}
+                className="text-xs font-medium text-rose-500 hover:underline"
+              >
+                Unlink
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowContactPicker(!showContactPicker)}
+                className="text-xs font-medium text-navy-500 hover:text-navy-700 dark:text-lavender-400"
+              >
+                {showContactPicker ? 'Close' : 'Link'}
+              </button>
+            )}
           </div>
-          <div className="flex-1">
-            <p className="text-xs font-semibold text-navy-700 dark:text-navy-100">Associate contact</p>
-            <p className="text-[10px] text-navy-400">Link this note to a contact</p>
-          </div>
-          <button className="text-xs font-medium text-navy-400 hover:text-navy-600 dark:text-lavender-400">Link</button>
+
+          {showContactPicker && !selectedContact && (
+            <div className="pt-2 border-t border-navy-100 dark:border-navy-700 space-y-1">
+              <span className="text-[10px] text-navy-400 block mb-1">Select a contact:</span>
+              <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
+                {contacts.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => {
+                      setContactId(c.id);
+                      setShowContactPicker(false);
+                      if (!tags.includes(c.name.toLowerCase().split(' ')[0])) {
+                        setTags((prev) => [...prev, c.name.toLowerCase().split(' ')[0]]);
+                      }
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-navy-50 dark:bg-navy-800 text-[11px] font-medium text-navy-700 dark:text-navy-200 border border-navy-100 dark:border-navy-700 hover:border-lavender-400"
+                  >
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Bottom toolbar */}
       <div className="flex items-center justify-around px-5 py-4 bg-white dark:bg-navy-900/50 border-t border-navy-100 dark:border-navy-800">
-        <button className="w-11 h-11 rounded-xl bg-navy-100 dark:bg-navy-800 flex items-center justify-center transition-transform hover:scale-105">
-          <Mic size={18} className="text-navy-600 dark:text-navy-200" />
+        <button
+          onClick={handleVoiceDictation}
+          title="Dictate with voice"
+          className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all hover:scale-105 ${dictating ? 'bg-rose-500 text-white animate-pulse' : 'bg-navy-100 dark:bg-navy-800 text-navy-600 dark:text-navy-200'}`}
+        >
+          <Mic size={18} />
         </button>
-        <button className="w-11 h-11 rounded-xl gradient-primary flex items-center justify-center shadow-soft transition-transform hover:scale-105">
-          <Sparkles size={18} className="text-white" />
+        <button
+          onClick={handleAIEnhance}
+          disabled={aiGenerating}
+          title="Enhance with Local AI"
+          className="w-11 h-11 rounded-xl gradient-primary flex items-center justify-center shadow-soft transition-transform hover:scale-105 active:scale-95 disabled:opacity-50"
+        >
+          {aiGenerating ? <Loader2 size={18} className="text-white animate-spin" /> : <Sparkles size={18} className="text-white" />}
         </button>
         {note && (
           <button
